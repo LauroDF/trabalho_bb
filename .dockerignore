@@ -1,0 +1,42 @@
+# Python virtual environments and bytecode
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+
+# uv caches and temporary files
+.uv/
+.uv-cache/
+uv-cache/
+.cache/
+**/.cache/
+
+# Test, lint, and type-check caches
+.pytest_cache/
+**/.pytest_cache/
+.mypy_cache/
+**/.mypy_cache/
+.ruff_cache/
+**/.ruff_cache/
+.coverage
+htmlcov/
+
+# Local persistent data is mounted from the host at /data
+data/
+
+# Logs and backup files
+*.log
+**/*.log
+*.bak
+**/*.bak
+
+# Git and editor files
+.git/
+.gitignore
+.vscode/
+
+# Local environment files
+.env
+.env.*
+!.env.example

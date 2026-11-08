@@ -1,0 +1,328 @@
+
+import csv
+import uuid
+from datetime import datetime
+from pathlib import Path
+
+import math
+import time
+import RPi.GPIO as GPIO
+from mfrc522 import SimpleMFRC522
+
+
+# Pinos BCM do Raspberry Pi
+LED_VERMELHO = 17
+LED_VERDE = 27
+LED_AZUL = 23  # Pino físico 16; alterado para evitar conflito com o RFID
+BUZZER = 18
+
+GPIO.setmode(GPIO.BCM)
+
+GPIO.setup(LED_VERMELHO, GPIO.OUT, initial=GPIO.LOW)
+GPIO.setup(LED_VERDE, GPIO.OUT, initial=GPIO.LOW)
+GPIO.setup(LED_AZUL, GPIO.OUT, initial=GPIO.LOW)
+GPIO.setup(BUZZER, GPIO.OUT, initial=GPIO.LOW)
+
+# PWM permite variar o brilho do LED
+pwm_vermelho = GPIO.PWM(LED_VERMELHO, 100)
+pwm_verde = GPIO.PWM(LED_VERDE, 100)
+pwm_azul = GPIO.PWM(LED_AZUL, 100)
+
+pwm_vermelho.start(0)
+pwm_verde.start(0)
+pwm_azul.start(0)
+
+
+def definir_led(vermelho=0, verde=0, azul=0):
+    pwm_vermelho.ChangeDutyCycle(vermelho)
+    pwm_verde.ChangeDutyCycle(verde)
+    pwm_azul.ChangeDutyCycle(azul)
+
+
+def desligar_led():
+    definir_led(0, 0, 0)
+
+
+def bip(duracao=0.15):
+    GPIO.output(BUZZER, GPIO.HIGH)
+    time.sleep(duracao)
+    GPIO.output(BUZZER, GPIO.LOW)
+
+
+def sinal_autorizado():
+    definir_led(0, 100, 0)
+    bip(0.15)
+    time.sleep(1.85)
+    desligar_led()
+
+
+def sinal_sem_acesso():
+    definir_led(100, 20, 0)
+    bip(0.15)
+    time.sleep(0.2)
+    bip(0.15)
+    time.sleep(1.5)
+    desligar_led()
+
+
+def sinal_invasao():
+    inicio = time.monotonic()
+    proximo_bip = inicio
+
+    while time.monotonic() - inicio < 5:
+        tempo = time.monotonic() - inicio
+
+        # Varia o brilho do vermelho suavemente, de 0 a 100%.
+        brilho = 50 * (1 + math.sin(2 * math.pi * tempo * 1.2))
+        definir_led(vermelho=brilho)
+
+        # Bips rápidos durante o alerta.
+        agora = time.monotonic()
+        if agora >= proximo_bip:
+            GPIO.output(BUZZER, GPIO.HIGH)
+            time.sleep(0.07)
+            GPIO.output(BUZZER, GPIO.LOW)
+            proximo_bip = time.monotonic() + 0.13
+
+        time.sleep(0.02)
+
+    desligar_led()
+    GPIO.output(BUZZER, GPIO.LOW)
+
+
+# Arquivo local de registros
+PASTA_DADOS = Path("data")
+ARQUIVO_LOGS = PASTA_DADOS / "logs_acesso.csv"
+
+
+# Tags cadastradas no sistema
+# autorizado=True: pode acessar a sala.
+# autorizado=False: colaborador cadastrado sem permissão.
+# ativo=False: cadastro desativado.
+FUNCIONARIOS = {
+    # Cadastrados com acesso
+    "962185903074": {
+        "nome": "Funcionario A",
+        "autorizado": True,
+        "ativo": True,
+    },
+    "701044494601": {
+        "nome": "Funcionario B",
+        "autorizado": True,
+        "ativo": True,
+    },
+
+    # Cadastrados sem acesso
+    "632092037175": {
+        "nome": "Funcionario C",
+        "autorizado": False,
+        "ativo": True,
+    },
+    "427066982110": {
+        "nome": "Funcionario D",
+        "autorizado": False,
+        "ativo": True,
+    },
+
+    # Tags azuis: identificadores de invasores para testes
+    "426096719348": {
+        "nome": "Invasor Sombra",
+        "autorizado": False,
+        "ativo": True,
+        "invasor": True,
+    },
+    "427389875583": {
+        "nome": "Invasor Fantasma",
+        "autorizado": False,
+        "ativo": True,
+        "invasor": True,
+    },
+    "358803442058": {
+        "nome": "Invasor Espectro",
+        "autorizado": False,
+        "ativo": True,
+        "invasor": True,
+    },
+}
+
+
+# Estado temporário da sessão
+DENTRO_DA_SALA = set()
+ENTRADAS_HOJE = {}
+
+
+def preparar_csv():
+    PASTA_DADOS.mkdir(parents=True, exist_ok=True)
+
+    if not ARQUIVO_LOGS.exists() or ARQUIVO_LOGS.stat().st_size == 0:
+        with ARQUIVO_LOGS.open(
+            "w", newline="", encoding="utf-8"
+        ) as arquivo:
+            escritor = csv.writer(arquivo)
+            escritor.writerow([
+                "event_id",
+                "data_hora",
+                "tag_uid",
+                "nome",
+                "tipo",
+                "resultado",
+            ])
+
+
+def registrar_evento(tag_uid, nome, tipo, resultado):
+    data_hora = datetime.now().astimezone().isoformat(
+        timespec="seconds"
+    )
+
+    with ARQUIVO_LOGS.open(
+        "a", newline="", encoding="utf-8"
+    ) as arquivo:
+        escritor = csv.writer(arquivo)
+        escritor.writerow([
+            str(uuid.uuid4()),
+            data_hora,
+            tag_uid,
+            nome,
+            tipo,
+            resultado,
+        ])
+
+    print(f"Evento registrado: {tipo} - {resultado}")
+
+
+def processar_tag(tag):
+    tag_uid = str(tag)
+    funcionario = FUNCIONARIOS.get(tag_uid)
+
+    print("\n" + "=" * 40)
+
+    # Tag não cadastrada
+    if funcionario is None:
+        print("ALERTA: TAG DESCONHECIDA!")
+        print("Possível tentativa de invasão.")
+        print("Acesso negado.")
+        sinal_invasao()
+
+        registrar_evento(
+            tag_uid,
+            "Tag desconhecida",
+            "TENTATIVA_INVASAO",
+            "NEGADO",
+        )
+        return
+
+    nome = funcionario["nome"]
+
+    # Tags identificadas como invasores
+    if funcionario.get("invasor", False):
+        print(f"ALERTA DE SEGURANÇA: {nome}!")
+        print(f"ID da tag: {tag_uid}")
+        print("Acesso negado: tag identificada como invasora.")
+        sinal_invasao()
+
+        registrar_evento(
+            tag_uid,
+            nome,
+            "TENTATIVA_INVASAO",
+            "NEGADO",
+        )
+        return
+
+    # Cadastro desativado
+    if not funcionario["ativo"]:
+        print(f"Colaborador: {nome}")
+        print("Acesso negado: cadastro inativo.")
+        sinal_sem_acesso()
+
+        registrar_evento(
+            tag_uid,
+            nome,
+            "ACESSO_NEGADO",
+            "NEGADO",
+        )
+        return
+
+    # Colaborador cadastrado sem permissão
+    if not funcionario["autorizado"]:
+        print(f"Colaborador: {nome}")
+        print("Acesso negado: sem permissão para a sala.")
+        sinal_sem_acesso()
+
+        registrar_evento(
+            tag_uid,
+            nome,
+            "ACESSO_NEGADO",
+            "NEGADO",
+        )
+        return
+
+    # Colaborador ativo e autorizado
+    hoje = datetime.now().astimezone().date()
+    primeiro_acesso = ENTRADAS_HOJE.get(tag_uid) != hoje
+
+    if tag_uid not in DENTRO_DA_SALA:
+        DENTRO_DA_SALA.add(tag_uid)
+        ENTRADAS_HOJE[tag_uid] = hoje
+
+        if primeiro_acesso:
+            print(f"Bem-vindo, {nome}!")
+        else:
+            print(f"Bem-vindo de volta, {nome}!")
+
+        print("Acesso autorizado.")
+        sinal_autorizado()
+
+        registrar_evento(
+            tag_uid,
+            nome,
+            "ENTRADA",
+            "AUTORIZADO",
+        )
+
+    else:
+        DENTRO_DA_SALA.remove(tag_uid)
+
+        print(f"Até logo, {nome}!")
+        print("Saída registrada.")
+        sinal_autorizado()
+
+        registrar_evento(
+            tag_uid,
+            nome,
+            "SAIDA",
+            "AUTORIZADO",
+        )
+
+
+def main():
+    preparar_csv()
+    leitor_rfid = SimpleMFRC522()
+
+    print("Sistema de controle de acesso iniciado.")
+    print("Aproxime um cartão ou tag RFID.")
+    print("Pressione Ctrl+C para encerrar.")
+
+    try:
+        while True:
+            tag, texto = leitor_rfid.read()
+            processar_tag(tag)
+            time.sleep(2)
+
+    except KeyboardInterrupt:
+        print("\nEncerrando o sistema...")
+
+    finally:
+        desligar_led()
+
+        pwm_vermelho.stop()
+        pwm_verde.stop()
+        pwm_azul.stop()
+
+        GPIO.output(BUZZER, GPIO.LOW)
+        GPIO.cleanup()
+
+        print("GPIOs liberados.")
+
+
+if __name__ == "__main__":
+    main()
