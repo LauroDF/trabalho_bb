@@ -1,5 +1,5 @@
 services:
-  trabalho-bb:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
@@ -7,7 +7,7 @@ services:
         PYTHON_VERSION: "3.13"
         UV_VERSION: "0.13.7"
 
-    container_name: trabalho-bb
+    container_name: app
     restart: unless-stopped
     init: true
     privileged: true
@@ -17,3 +17,21 @@ services:
 
     environment:
       PYTHONUNBUFFERED: "1"
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+
+    command: redis-server --appendonly yes
+
+    volumes:
+      - redis_data:/data
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis_data:
