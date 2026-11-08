@@ -2,8 +2,14 @@ import sqlite3
 import uuid
 from pathlib import Path
 
+ROOT_DIR = Path(__file__).resolve().parents[3]
+DB_DIR = ROOT_DIR / "data"
+DB_PATH = DB_DIR / "clients.db"
+
 def initialize_database():
-    connection = sqlite3.connect("../../../data/clients.db")
+    DB_DIR.mkdir(parents=True, exist_ok=True)
+
+    connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
 
     cursor.execute("""
@@ -11,7 +17,7 @@ def initialize_database():
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             cpf TEXT UNIQUE NOT NULL CHECK(length(cpf) == 11),
-            password TEXT NOT NULL CHECK(length(password) >= 8)
+            password TEXT NOT NULL CHECK(length(password) >= 8),
             rfid TEXT UNIQUE NOT NULL,
             balance REAL
         )
@@ -50,7 +56,7 @@ def initialize_database():
                 str(uuid.uuid4()),
                 "Sophia Bonita",
                 "45678901206",
-                "admin1234567,"
+                "admin1234567",
                 "427066982110",
                 95046,
             ),
@@ -65,61 +71,47 @@ def initialize_database():
         )
 
         connection.commit()
-        print("Banco de dados criado e dados inseridos")
+        print("DB criado e dados inseridos")
     else:
-        print("Banco de dados já foi inicializado")
+        print("DB já foi inicializado")
 
     connection.close()
 
-# def auth_by_rfid(rfid):
-#   try:
-#     connection = sqlite3.connect("acess_control.db")
-#     cursor = connection.cursor()
+def auth_client(rfid_input, password_input):
+  try:
+    connection = sqlite3.connect(DB_PATH)
+    cursor = connection.cursor()
 
-#     cursor.execute(
-#         """
-#             SELECT nome, cargo, acesso_sala, status 
-#             FROM pessoas 
-#             WHERE rfid = ?
-#         """,
-#         (rfid,),
-#     )
+    cursor.execute(
+        """
+            SELECT id, name, password
+            FROM clients 
+            WHERE rfid = ?
+        """,
+        (rfid_input,),
+    )
 
-#     user = cursor.fetchone()
-#     connection.close()
+    user = cursor.fetchone()
+    connection.close()
 
-#     if not user:
-#       return {
-#           "autorizado": False,
-#           "mensagem": "Código RFID inválido ou não cadastrado.",
-#       }
+    if not user:
+      return {
+          "Usuário não identificado",
+      }
 
-#     nome, cargo, acesso_sala, status = user
+    name, password = user
 
-#     if status != "ativo":
-#       return {
-#           "autorizado": False,
-#           "mensagem": f"Acesso negado: {nome}, seu cadastro está inativo.",
-#       }
+    if password_input == password:
+        print(f"Bem-vindo(a) {name}")
+        return True
+    else:
+       print("Senha incorreta")
+       return False
 
-#     if acesso_sala != "sim":
-#       return {
-#           "autorizado": False,
-#           "mensagem": (
-#               f"Acesso negado: {nome}, você não tem permissão para entrar na"
-#               " sala."
-#           ),
-#       }
-
-#     return {
-#         "autorizado": True,
-#         "mensagem": f"Acesso liberado! Bem-vindo(a), {nome} ({cargo}).",
-#     }
-
-#   except Exception as e:
-#     print(f"Erro ao autenticar: {e}")
-#     return {"autorizado": False, "mensagem": "Erro interno no sistema."}
-
+  except Exception as e:
+    print(f"Falha ao tentar autenticar o cliente: {e}")
+    return False
+  
 def add_user(nome, rfid, cargo, acesso_sala, status="ativo"):
   try:
     connection = sqlite3.connect("acess_control.db")
