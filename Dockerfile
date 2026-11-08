@@ -1,12 +1,8 @@
-# syntax=docker/dockerfile:1.7
+FROM ghcr.io/astral-sh/uv:0.13.7 AS uv
 
-ARG PYTHON_VERSION=3.13
-ARG UV_VERSION=0.13.7
+FROM python:3.13-slim AS builder
 
-FROM python:${PYTHON_VERSION}-slim AS builder
-
-ARG UV_VERSION
-COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /bin/
+COPY --from=uv /uv /uvx /bin/
 
 ENV UV_LINK_MODE=copy \
     UV_NO_DEV=1 \
@@ -27,10 +23,10 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
-FROM python:${PYTHON_VERSION}-slim AS runtime
+FROM python:3.13-slim AS runtime
 
 ARG UV_VERSION
-COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /uvx /bin/
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
