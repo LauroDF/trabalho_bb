@@ -13,73 +13,84 @@ def hash_password(password):
 def initialize_database():
     DB_DIR.mkdir(parents=True, exist_ok=True)
 
-    connection = sqlite3.connect(DB_PATH)
-    cursor = connection.cursor()
+    try:
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS clients (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            cpf TEXT UNIQUE NOT NULL CHECK(length(cpf) == 11),
-            password TEXT NOT NULL CHECK(length(password) >= 8),
-            rfid TEXT UNIQUE NOT NULL,
-            balance REAL DEFAULT 0.0
-        )
-    """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS clients (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                cpf TEXT UNIQUE NOT NULL CHECK(length(cpf) == 11),
+                password TEXT NOT NULL CHECK(length(password) >= 8),
+                rfid TEXT UNIQUE NOT NULL,
+                balance REAL DEFAULT 0.0
+            )
+        """)
 
-    cursor.execute("SELECT COUNT(*) FROM clients")
-    total_rows = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM clients")
+        total_rows = cursor.fetchone()[0]
 
-    if total_rows == 0:
-        initial_clients = [
-            (
-                str(uuid.uuid4()),
-                "Pedro Silva",
-                "11144477735",
-                hash_password("3443dre3t4t"),
-                "962185903074",
-                578,
-            ),
-            (
-                str(uuid.uuid4()),
-                "Carlo Edoardo",
-                "52998224059",
-                hash_password("43gds5yge"),
-                "701044494601",
-                2345,
-            ),
-            (
-                str(uuid.uuid4()),
-                "Miguel Alencar",
-                "12345678908",
-                hash_password("miguel123456"),
-                "632092037175",
-                21,
-            ),
-            (
-                str(uuid.uuid4()),
-                "Sophia Bonita",
-                "45678901206",
-                hash_password("admin1234567"),
-                "427066982110",
-                95046,
-            ),
-        ]
+        if total_rows == 0:
+            initial_clients = [
+                (
+                    str(uuid.uuid4()),
+                    "Pedro Silva",
+                    "11144477735",
+                    hash_password("3443dre3t4t"),
+                    "962185903074",
+                    578,
+                ),
+                (
+                    str(uuid.uuid4()),
+                    "Carlo Edoardo",
+                    "52998224059",
+                    hash_password("43gds5yge"),
+                    "701044494601",
+                    2345,
+                ),
+                (
+                    str(uuid.uuid4()),
+                    "Miguel Alencar",
+                    "12345678908",
+                    hash_password("miguel123456"),
+                    "632092037175",
+                    21,
+                ),
+                (
+                    str(uuid.uuid4()),
+                    "Sophia Bonita",
+                    "45678901206",
+                    hash_password("admin1234567"),
+                    "427066982110",
+                    95046,
+                ),
+            ]
 
-        cursor.executemany(
-            """
-                INSERT INTO clients (id, name, cpf, password, rfid, balance)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            initial_clients,
-        )
+            cursor.executemany(
+                """
+                    INSERT INTO clients (id, name, cpf, password, rfid, balance)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                initial_clients,
+            )
+            connection.commit()
+            print("DB criado e dados inseridos")
 
-        connection.commit()
-        print("DB criado e dados inseridos")
-    else:
-        print("DB já foi inicializado")
+        else:
+            print("DB já foi inicializado")
 
-    connection.close()
+    except sqlite3.Error as e:
+        print(f"Erro no db ao ser inicializado: {e}")
+        return False
+
+    except Exception as e:
+        print(f"Erro ao inicializar db: {e}")
+        return False
+
+    finally:
+        if connection:
+            connection.close()
 
 def auth_client(rfid, password_input):
     try:
@@ -273,7 +284,95 @@ def delete_user_by_id(id):
         return False
 
     except Exception as e:
-        print(f"Erro ao deletar cliente: {e}")
+        print(f"Erro ao excluir conta: {e}")
+        return False
+
+    finally:
+        if connection:
+            connection.close()
+
+def withdraw(id, withdraw_amount):
+    try:
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+                SELECT balance
+                FROM clients
+                WHERE id = ?
+            """,
+            (id,),
+        )
+
+        current_balance = cursor.fetchone()[0]
+        if current_balance < withdraw_amount:
+            print("Saldo insuficiente para realizar o saque")
+            return False
+
+        new_balance = current_balance - withdraw_amount
+
+        cursor.execute(
+            """
+                UPDATE clients 
+                SET balance = ?
+                WHERE id = ?
+            """,
+            (new_balance, id),
+        )
+
+        connection.commit()
+        print(f"Saque realizado com sucesso")
+        return True
+
+    except sqlite3.Error as e:
+        print(f"Erro no db ao realizar o saque: {e}")
+        return False
+
+    except Exception as e:
+        print(f"Erro ao realizar saque: {e}")
+        return False
+
+    finally:
+        if connection:
+            connection.close()
+
+def deposit(id, deposit_amount):
+    try:
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+                SELECT balance
+                FROM clients
+                WHERE id = ?
+            """,
+            (id,),
+        )
+
+        current_balance = cursor.fetchone()[0]
+        new_balance = current_balance + deposit_amount
+
+        cursor.execute(
+            """
+                UPDATE clients 
+                SET balance = ?
+                WHERE id = ?
+            """,
+            (new_balance, id),
+        )
+
+        connection.commit()
+        print(f"Depósito realizado com sucesso")
+        return True
+
+    except sqlite3.Error as e:
+        print(f"Erro no db ao realizar o depósito: {e}")
+        return False
+
+    except Exception as e:
+        print(f"Erro ao realizar depósito: {e}")
         return False
 
     finally:
