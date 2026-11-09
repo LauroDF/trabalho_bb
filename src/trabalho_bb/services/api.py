@@ -13,7 +13,7 @@ from flask import (
     session,
 )
 
-from trabalho_bb.database.database import (
+from trabalho_bb.database.db_repository import (
     add_user,
     delete_user_by_rfid,
     list_all_users,
