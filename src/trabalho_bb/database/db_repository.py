@@ -1,10 +1,14 @@
 import sqlite3
 import uuid
+import hashlib
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 DB_DIR = ROOT_DIR / "data"
 DB_PATH = DB_DIR / "clients.db"
+
+def hash_password(password):
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 def initialize_database():
     DB_DIR.mkdir(parents=True, exist_ok=True)
@@ -32,7 +36,7 @@ def initialize_database():
                 str(uuid.uuid4()),
                 "Pedro Silva",
                 "11144477735",
-                "3443dre3t4t",
+                hash_password("3443dre3t4t"),
                 "962185903074",
                 578,
             ),
@@ -40,7 +44,7 @@ def initialize_database():
                 str(uuid.uuid4()),
                 "Carlo Edoardo",
                 "52998224059",
-                "43gds5yge",
+                hash_password("43gds5yge"),
                 "701044494601",
                 2345,
             ),
@@ -48,7 +52,7 @@ def initialize_database():
                 str(uuid.uuid4()),
                 "Miguel Alencar",
                 "12345678908",
-                "miguel123456",
+                hash_password("miguel123456"),
                 "632092037175",
                 21,
             ),
@@ -56,7 +60,7 @@ def initialize_database():
                 str(uuid.uuid4()),
                 "Sophia Bonita",
                 "45678901206",
-                "admin1234567",
+                hash_password("admin1234567"),
                 "427066982110",
                 95046,
             ),
@@ -86,7 +90,9 @@ def auth_client(rfid, password_input):
 
         id, name, cpf, password, balance = client
 
-        if password_input == password:
+        hashed_password_input = hash_password(password_input)
+
+        if hashed_password_input == password:
             print(f"Bem-vindo(a) {name}")
             return True
         else:
@@ -107,13 +113,14 @@ def create_account(name, cpf, password, rfid):
         cursor = connection.cursor()
 
         new_id = str(uuid.uuid4())
+        hashed_password = hash_password(password)
 
         cursor.execute(
             """
-                INSERT INTO pessoas (id, name, cpf, password, rfid)
+                INSERT INTO clients (id, name, cpf, password, rfid)
                 VALUES (?, ?, ?, ?, ?)
             """,
-            (new_id, name, cpf, password, rfid),
+            (new_id, name, cpf, hashed_password, rfid),
         )
 
         connection.commit()
@@ -212,7 +219,7 @@ def update_client_data(id, new_name=None, new_cpf=None, new_password=None, new_r
 
         if new_password is not None:
             fields.append("password = ?")
-            values.append(new_password)
+            values.append(hash_password(new_password))
 
         if new_rfid is not None:
             fields.append("rfid = ?")
