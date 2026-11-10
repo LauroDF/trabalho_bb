@@ -360,7 +360,7 @@ def search_client_by_rfid(rfid):
 #         if connection:
 #             connection.close()
 
-def delete_user_by_id(id):
+def delete_account_by_id(id):
     try:
         connection = sqlite3.connect(DB_PATH)
         cursor = connection.cursor()
@@ -374,6 +374,9 @@ def delete_user_by_id(id):
         )
 
         connection.commit()
+        
+        if cursor.rowcount == 1:
+            raise ClientNotFoundError("Cliente não encontrado")
         print(f"Conta excluída com sucesso")
 
     except sqlite3.Error as e:

@@ -11,8 +11,7 @@ from trabalho_bb.repositories.bank_repository import (
     withdraw,
     deposit,
     search_client_by_rfid,
-    list_all_clients,
-    delete_user_by_id,
+    delete_account_by_id,
 )
 
 from ..exceptions.exceptions import (
@@ -75,5 +74,8 @@ def authenticate_client(rfid, password_input):
             "balance": balance
         }
 
+def delete_client_account(id):
+    delete_account_by_id(id)
+
 # ENDPOINTS:
-# deletar usuário, atualizar conta, depositar e sacar
+# atualizar conta, depositar e sacar

@@ -4,8 +4,9 @@ from flask import (
     request,
 )
 from ..services.bank_service import (
-    authenticate_client, 
-    create_account
+    create_account,
+    authenticate_client,
+    delete_client_account
     )
 from ..exceptions.exceptions import (
     ClientNotFoundError,
@@ -102,6 +103,43 @@ def login():
                 "success": False,
                 "message": str(e),
             }), 404
+
+    except DatabaseError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 500
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Ocorreu um erro inesperado no sistema",
+        }), 500
+
+@app.route("/api/clients/<id>", methods=["DELETE"])
+def delete_account(id):
+    try:
+        if not id:
+            raise MissingValueError("Há campo(s) faltante(s)")
+
+        delete_client_account(id)
+
+        return jsonify({
+            "success": True,
+            "message": "Exclusão da conta efetuada com sucesso",
+        }), 200
+
+    except MissingValueError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except ClientNotFoundError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 404
 
     except DatabaseError as e:
         return jsonify({
