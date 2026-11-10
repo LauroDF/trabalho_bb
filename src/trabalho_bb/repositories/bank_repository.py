@@ -2,6 +2,13 @@ import sqlite3
 import uuid
 import hashlib
 from pathlib import Path
+from ..exceptions.exceptions import (
+    ClientNotFoundError, 
+    IncorrectPasswordError,
+    NoFieldsToBeUpdated,
+    InsufficientBalanceError, 
+    DatabaseError, 
+)
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 DB_DIR = ROOT_DIR / "data"
@@ -82,42 +89,16 @@ def initialize_database():
 
     except sqlite3.Error as e:
         print(f"Erro no db ao ser inicializado: {e}")
-        return False
+        raise DatabaseError("Erro interno ao inicializar banco de dados")
 
     except Exception as e:
         print(f"Erro ao inicializar db: {e}")
-        return False
+        raise DatabaseError("Ocorreu um erro inesperado no sistema")
 
     finally:
         if connection:
             connection.close()
 
-def auth_client(rfid, password_input):
-    try:
-        client = search_client_by_rfid(rfid)
-
-        if client == "Usuário não identificado":
-           return "Usuário não identificado"
-
-        id, name, cpf, password, balance = client
-
-        hashed_password_input = hash_password(password_input)
-
-        if hashed_password_input == password:
-            print(f"Bem-vindo(a) {name}")
-            return True
-        else:
-            print("Senha incorreta")
-            return False
-
-    except sqlite3.Error as e:
-        print(f"Erro no db ao autenticar cliente: {e}")
-        return False
-
-    except Exception as e:
-        print(f"Erro ao autenticar cliente: {e}")
-        return False
-  
 def create_account(name, cpf, password, rfid):
     try:
         connection = sqlite3.connect(DB_PATH)
@@ -135,82 +116,49 @@ def create_account(name, cpf, password, rfid):
         )
 
         connection.commit()
-        print(f"Sucesso: '{name}' foi cadastrado(a) com o RFID {rfid}")
-        return True
+        print(f"{name} foi cadastrado(a) com sucesso")
 
     except sqlite3.IntegrityError:
-        print(f"Erro: RFID ou cpf já pertence a outro cliente cadastrado")
-        return False
+        print(f"Erro: Não foi possível criar a conta por uma violação de integridade")
+        raise DatabaseError("Erro interno ao criar conta")
 
     except sqlite3.Error as e:
         print(f"Erro no db ao criar a conta: {e}")
-        return False
+        raise DatabaseError("Erro interno ao criar conta")
     
     except Exception as e:
         print(f"Erro ao criar a conta: {e}")
-        return False
+        raise DatabaseError("Ocorreu um erro inesperado no sistema")
 
     finally:
         if connection:
             connection.close()
 
-def list_all_clients():
-    try:
-        connection = sqlite3.connect(DB_PATH)
-        cursor = connection.cursor()
+# def authenticate_client(rfid, password_input):
+#     try:
+#         client = search_client_by_rfid(rfid)
 
-        cursor.execute(
-            """
-                SELECT id, name, cpf, rfid, balance
-                FROM clients
-            """
-        )
-        clients = cursor.fetchall()
-        return clients
+#         if client == "Usuário não identificado":
+#            return "Usuário não identificado"
 
-    except sqlite3.Error as e:
-        print(f"Erro no db ao listar clientes: {e}")
-        return False
+#         id, name, cpf, password, balance = client
 
-    except Exception as e:
-        print(f"Erro ao listar clientes: {e}")
-        return False
+#         hashed_password_input = hash_password(password_input)
 
-    finally:
-        if connection:
-            connection.close()
+#         if hashed_password_input == password:
+#             print(f"Bem-vindo(a) {name}")
 
-def search_client_by_rfid(rfid):
-    try: 
-        connection = sqlite3.connect(DB_PATH)
-        cursor = connection.cursor()
+#         else:
+#             print("Senha incorreta")
+#             raise IncorrectPasswordError("Senha incorreta")
 
-        cursor.execute(
-            """
-                SELECT id, name, cpf, password, balance 
-                FROM clients 
-                WHERE rfid = ?
-            """,
-            (rfid,),
-        )
+#     except sqlite3.Error as e:
+#         print(f"Erro no db ao autenticar cliente: {e}")
+#         raise DatabaseError("Erro interno ao autenticar cliente")
 
-        client = cursor.fetchone()
-
-        if not client:
-            return "Usuário não identificado"
-        return client
-
-    except sqlite3.Error as e:
-        print(f"Erro no db ao procurar cliente: {e}")
-        return False
-    
-    except Exception as e:
-        print(f"Erro ao procurar cliente: {e}")
-        return False
-
-    finally:
-        if connection:
-            connection.close()
+#     except Exception as e:
+#         print(f"Erro ao autenticar cliente: {e}")
+#         raise DatabaseError("Ocorreu um erro inesperado no sistema")
 
 def update_client_data(id, new_name=None, new_cpf=None, new_password=None, new_rfid=None):
     try:
@@ -238,54 +186,32 @@ def update_client_data(id, new_name=None, new_cpf=None, new_password=None, new_r
 
         if not fields:
             print("Nenhuma informação para ser atualizada")
-            return False
+            raise NoFieldsToBeUpdated("Nenhuma informação para ser atualizada")
 
         values.append(id)
-        sql = f"UPDATE clients SET {', '.join(fields)} WHERE id = ?"
-
-        cursor.execute(sql, tuple(values))
-        connection.commit()
-        return True
-
-    except sqlite3.IntegrityError:
-        print(f"Erro: RFID ou cpf já pertence a outro cliente cadastrado")
-        return False
-
-    except sqlite3.Error as e:
-        print(f"Erro no db atualizar a conta: {e}")
-        return False
-
-    except Exception as e:
-        print(f"Erro ao atualizar cliente: {e}")
-        return False
-
-    finally:
-        if connection:
-            connection.close()
-
-def delete_user_by_id(id):
-    try:
-        connection = sqlite3.connect(DB_PATH)
-        cursor = connection.cursor()
-
         cursor.execute(
-            """
-                DELETE FROM clients
+            f"""
+                UPDATE clients 
+                SET {', '.join(fields)} 
                 WHERE id = ?
             """,
-            (id,),
+            tuple(values)
         )
 
         connection.commit()
-        print(f"Conta excluída com sucesso")
+        print(f"Atualização feita com sucesso")
+
+    except sqlite3.IntegrityError:
+        print(f"Erro: Não foi possível atualizar a conta por uma violação de integridade")
+        raise DatabaseError("Erro interno ao atualizar conta")
 
     except sqlite3.Error as e:
-        print(f"Erro no db ao excluir a conta: {e}")
-        return False
+        print(f"Erro no db atualizar a conta: {e}")
+        raise DatabaseError("Erro interno ao atualizar conta")
 
     except Exception as e:
-        print(f"Erro ao excluir conta: {e}")
-        return False
+        print(f"Erro ao atualizar cliente: {e}")
+        raise DatabaseError("Ocorreu um erro inesperado no sistema")
 
     finally:
         if connection:
@@ -307,8 +233,7 @@ def withdraw(id, withdraw_amount):
 
         current_balance = cursor.fetchone()[0]
         if current_balance < withdraw_amount:
-            print("Saldo insuficiente para realizar o saque")
-            return False
+            raise InsufficientBalanceError("Saldo insuficiente para realizar o saque")
 
         new_balance = current_balance - withdraw_amount
 
@@ -323,15 +248,14 @@ def withdraw(id, withdraw_amount):
 
         connection.commit()
         print(f"Saque realizado com sucesso")
-        return True
 
     except sqlite3.Error as e:
         print(f"Erro no db ao realizar o saque: {e}")
-        return False
+        raise DatabaseError("Erro interno ao realizar saque")
 
     except Exception as e:
         print(f"Erro ao realizar saque: {e}")
-        return False
+        raise DatabaseError("Ocorreu um erro inesperado no sistema")
 
     finally:
         if connection:
@@ -365,15 +289,100 @@ def deposit(id, deposit_amount):
 
         connection.commit()
         print(f"Depósito realizado com sucesso")
-        return True
 
     except sqlite3.Error as e:
         print(f"Erro no db ao realizar o depósito: {e}")
-        return False
+        raise DatabaseError("Erro interno ao realizar depósito")
 
     except Exception as e:
-        print(f"Erro ao realizar depósito: {e}")
-        return False
+        print(f"Erro inesperado ao realizar depósito: {e}")
+        raise DatabaseError("Ocorreu um erro inesperado no sistema")
+
+    finally:
+        if connection:
+            connection.close()
+
+def search_client_by_rfid(rfid):
+    try: 
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+                SELECT id, name, cpf, password, balance 
+                FROM clients 
+                WHERE rfid = ?
+            """,
+            (rfid,),
+        )
+
+        client = cursor.fetchone()
+
+        if not client:
+            raise ClientNotFoundError("Usuário não identificado")
+        return client
+
+    except sqlite3.Error as e:
+        print(f"Erro no db ao procurar cliente: {e}")
+        raise DatabaseError("Erro interno ao procurar cliente")
+    
+    except Exception as e:
+        print(f"Erro ao procurar cliente: {e}")
+        raise DatabaseError("Ocorreu um erro inesperado no sistema")
+
+    finally:
+        if connection:
+            connection.close()
+
+# def list_all_clients():
+#     try:
+#         connection = sqlite3.connect(DB_PATH)
+#         cursor = connection.cursor()
+
+#         cursor.execute(
+#             """
+#                 SELECT id, name, cpf, rfid, balance
+#                 FROM clients
+#             """
+#         )
+#         clients = cursor.fetchall()
+#         return clients
+
+#     except sqlite3.Error as e:
+#         print(f"Erro no db ao listar clientes: {e}")
+#         raise DatabaseError("Erro interno ao listar clientes")
+
+#     except Exception as e:
+#         print(f"Erro ao listar clientes: {e}")
+#         raise DatabaseError("Ocorreu um erro inesperado no sistema")
+
+#     finally:
+#         if connection:
+#             connection.close()
+
+def delete_user_by_id(id):
+    try:
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+                DELETE FROM clients
+                WHERE id = ?
+            """,
+            (id,),
+        )
+
+        connection.commit()
+        print(f"Conta excluída com sucesso")
+
+    except sqlite3.Error as e:
+        print(f"Erro no db ao excluir a conta: {e}")
+        raise DatabaseError("Erro interno ao deletar conta")
+
+    except Exception as e:
+        print(f"Erro ao excluir conta: {e}")
+        raise DatabaseError("Ocorreu um erro inesperado no sistema")
 
     finally:
         if connection:
