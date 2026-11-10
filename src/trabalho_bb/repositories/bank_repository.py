@@ -99,24 +99,24 @@ def initialize_database():
         if connection:
             connection.close()
 
-def create_account(name, cpf, password, rfid):
+def save_account_in_db(name, cpf, hashed_password, rfid, balance):
     try:
         connection = sqlite3.connect(DB_PATH)
         cursor = connection.cursor()
 
         new_id = str(uuid.uuid4())
-        hashed_password = hash_password(password)
 
         cursor.execute(
             """
-                INSERT INTO clients (id, name, cpf, password, rfid)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO clients (id, name, cpf, password, rfid, balance)
+                VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (new_id, name, cpf, hashed_password, rfid),
+            (new_id, name, cpf, hashed_password, rfid, balance),
         )
 
         connection.commit()
         print(f"{name} foi cadastrado(a) com sucesso")
+        return new_id
 
     except sqlite3.IntegrityError:
         print(f"Erro: Não foi possível criar a conta por uma violação de integridade")

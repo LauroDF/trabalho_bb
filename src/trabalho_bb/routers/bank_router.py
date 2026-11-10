@@ -3,7 +3,10 @@ from flask import (
     jsonify,
     request,
 )
-from ..services.bank_service import authenticate_client
+from ..services.bank_service import (
+    authenticate_client, 
+    create_account
+    )
 from ..exceptions.exceptions import (
     ClientNotFoundError,
     PasswordNotFoundError,
@@ -20,12 +23,50 @@ app = Flask(__name__)
 def home():
     return jsonify({"message": "API funcionando"}), 200
 
-@app.route("/auth", methods=["POST"])
+@app.route("/api/clients", methods=["POST"])
+def register_account():
+    try:
+        data = request.get_json()
+        if not data:
+            raise MissingValueError("Há campo(s) faltante(s)")
+
+        name = data.get("name")
+        cpf = data.get("cpf")
+        password = data.get("password")
+        rfid = data.get("rfid")
+
+        new_account = create_account(name, cpf, password, rfid)
+
+        return jsonify({
+            "success": True,
+            "message": "Cadastro realizado com sucesso",
+            "data": new_account
+        }), 201
+
+    except MissingValueError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except DatabaseError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 500
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Ocorreu um erro inesperado no sistema",
+        }), 500
+
+@app.route("/api/auth", methods=["POST"])
 def login():
     try:
         data = request.get_json()
         if not data:
-            raise MissingValueError("RFID e senha inválidos")
+            raise MissingValueError("Há campo(s) faltante(s)")
 
         rfid = data.get("rfid")
         password = data.get("password")
