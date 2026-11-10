@@ -6,6 +6,7 @@ from flask import (
 from ..services.bank_service import (
     create_account,
     authenticate_client,
+    update_client_account,
     delete_client_account
     )
 from ..exceptions.exceptions import (
@@ -49,6 +50,12 @@ def register_account():
             "success": False,
             "message": str(e),
         }), 400
+
+    except IncorrectPasswordError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 401
 
     except DatabaseError as e:
         return jsonify({
@@ -103,6 +110,56 @@ def login():
                 "success": False,
                 "message": str(e),
             }), 404
+
+    except DatabaseError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 500
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Ocorreu um erro inesperado no sistema",
+        }), 500
+
+@app.route("/api/clients/<id>", methods=["PATCH"])
+def update_account(id):
+    try:
+        data = request.get_json()
+        if not data:
+            raise MissingValueError("É necessário preencher algum campo para atualizar")
+
+        name = data.get("name", None)
+        cpf = data.get("cpf", None)
+        password = data.get("password", None)
+        rfid = data.get("rfid", None)
+
+        update_result = update_client_account(id, name, cpf, password, rfid)
+
+        return jsonify({
+            "success": True,
+            "message": "Atualização realizada com sucesso",
+            "data": update_result
+        }), 200
+
+    except MissingValueError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except IncorrectPasswordError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 401
+
+    except ClientNotFoundError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 404
 
     except DatabaseError as e:
         return jsonify({

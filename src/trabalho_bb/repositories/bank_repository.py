@@ -160,7 +160,7 @@ def save_account_in_db(name, cpf, hashed_password, rfid, balance):
 #         print(f"Erro ao autenticar cliente: {e}")
 #         raise DatabaseError("Ocorreu um erro inesperado no sistema")
 
-def update_client_data(id, new_name=None, new_cpf=None, new_password=None, new_rfid=None):
+def update_account_by_id(id, new_name=None, new_cpf=None, new_password=None, new_rfid=None):
     try:
         connection = sqlite3.connect(DB_PATH)
         cursor = connection.cursor()
@@ -178,7 +178,7 @@ def update_client_data(id, new_name=None, new_cpf=None, new_password=None, new_r
 
         if new_password is not None:
             fields.append("password = ?")
-            values.append(hash_password(new_password))
+            values.append(new_password)
 
         if new_rfid is not None:
             fields.append("rfid = ?")
@@ -199,6 +199,9 @@ def update_client_data(id, new_name=None, new_cpf=None, new_password=None, new_r
         )
 
         connection.commit()
+
+        if cursor.rowcount == 0:
+            raise ClientNotFoundError("Cliente não encontrado")
         print(f"Atualização feita com sucesso")
 
     except sqlite3.IntegrityError:
@@ -319,7 +322,7 @@ def search_client_by_rfid(rfid):
         client = cursor.fetchone()
 
         if not client:
-            raise ClientNotFoundError("Usuário não identificado")
+            raise ClientNotFoundError("Cliente não encontrado")
         return client
 
     except sqlite3.Error as e:
@@ -374,8 +377,8 @@ def delete_account_by_id(id):
         )
 
         connection.commit()
-        
-        if cursor.rowcount == 1:
+
+        if cursor.rowcount == 0:
             raise ClientNotFoundError("Cliente não encontrado")
         print(f"Conta excluída com sucesso")
 

@@ -7,7 +7,7 @@ from flask import (
 from trabalho_bb.repositories.bank_repository import (
     save_account_in_db,
     authenticate_client,
-    update_client_data,
+    update_account_by_id,
     withdraw,
     deposit,
     search_client_by_rfid,
@@ -40,6 +40,9 @@ def create_account(name, cpf, password, rfid, balance=0.0):
     
     if not rfid:
         raise MissingValueError("Tag não identificada")
+
+    if len(password) < 8 or len(password) > 128:
+        raise IncorrectPasswordError("Senha não pode ter menos que oito ou mais que 128 caracteres")
 
     hashed_password = hash_password(password)
     id = save_account_in_db(name, cpf, hashed_password, rfid, balance)
@@ -74,8 +77,17 @@ def authenticate_client(rfid, password_input):
             "balance": balance
         }
 
+def update_client_account(id, name, cpf, password, rfid):
+    hashed_password = None
+
+    if password is not None:
+        if len(password) < 8 or len(password) > 128:
+            raise IncorrectPasswordError("Senha não pode ter menos que oito ou mais que 128 caracteres")
+        hashed_password = hash_password(password)
+
+    update_account_by_id(id, name, cpf, hashed_password, rfid)
+
 def delete_client_account(id):
     delete_account_by_id(id)
 
-# ENDPOINTS:
-# atualizar conta, depositar e sacar
+# ENDPOINTS: depositar e sacar
