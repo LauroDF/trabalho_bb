@@ -2,10 +2,10 @@ import sqlite3
 import uuid
 import hashlib
 from pathlib import Path
+
 from ..exceptions.exceptions import (
-    ClientNotFoundError, 
-    IncorrectPasswordError,
-    NoFieldsToBeUpdated,
+    ClientNotFoundError,
+    NoFieldsToBeUpdatedError,
     InsufficientBalanceError, 
     DatabaseError, 
 )
@@ -134,32 +134,6 @@ def save_account_in_db(name, cpf, hashed_password, rfid, balance):
         if connection:
             connection.close()
 
-# def authenticate_client(rfid, password_input):
-#     try:
-#         client = search_client_by_rfid(rfid)
-
-#         if client == "Usuário não identificado":
-#            return "Usuário não identificado"
-
-#         id, name, cpf, password, balance = client
-
-#         hashed_password_input = hash_password(password_input)
-
-#         if hashed_password_input == password:
-#             print(f"Bem-vindo(a) {name}")
-
-#         else:
-#             print("Senha incorreta")
-#             raise IncorrectPasswordError("Senha incorreta")
-
-#     except sqlite3.Error as e:
-#         print(f"Erro no db ao autenticar cliente: {e}")
-#         raise DatabaseError("Erro interno ao autenticar cliente")
-
-#     except Exception as e:
-#         print(f"Erro ao autenticar cliente: {e}")
-#         raise DatabaseError("Ocorreu um erro inesperado no sistema")
-
 def update_account_by_id(id, new_name=None, new_cpf=None, new_password=None, new_rfid=None):
     try:
         connection = sqlite3.connect(DB_PATH)
@@ -186,7 +160,7 @@ def update_account_by_id(id, new_name=None, new_cpf=None, new_password=None, new
 
         if not fields:
             print("Nenhuma informação para ser atualizada")
-            raise NoFieldsToBeUpdated("Nenhuma informação para ser atualizada")
+            raise NoFieldsToBeUpdatedError("Nenhuma informação para ser atualizada")
 
         values.append(id)
         cursor.execute(
@@ -220,7 +194,39 @@ def update_account_by_id(id, new_name=None, new_cpf=None, new_password=None, new
         if connection:
             connection.close()
 
-def withdraw(id, withdraw_amount):
+def get_client_data_by_id(id):
+    try:
+        connection = sqlite3.connect(DB_PATH)
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+                SELECT id, name, cpf, rfid, balance
+                FROM clients
+                WHERE id = ?
+            """,
+            (id,),
+        )
+
+        client_data = cursor.fetchone()
+
+        if not client_data:
+            raise ClientNotFoundError("Cliente não encontrado")
+        return client_data
+
+    except sqlite3.Error as e:
+        print(f"Erro no db atualizar a conta: {e}")
+        raise DatabaseError("Erro interno ao atualizar conta")
+
+    except Exception as e:
+        print(f"Erro ao atualizar cliente: {e}")
+        raise DatabaseError("Ocorreu um erro inesperado no sistema")
+
+    finally:
+        if connection:
+            connection.close()
+
+def withdraw_by_id(id, withdraw_amount):
     try:
         connection = sqlite3.connect(DB_PATH)
         cursor = connection.cursor()
@@ -264,7 +270,7 @@ def withdraw(id, withdraw_amount):
         if connection:
             connection.close()
 
-def deposit(id, deposit_amount):
+def deposit_by_id(id, deposit_amount):
     try:
         connection = sqlite3.connect(DB_PATH)
         cursor = connection.cursor()
@@ -337,32 +343,6 @@ def search_client_by_rfid(rfid):
         if connection:
             connection.close()
 
-# def list_all_clients():
-#     try:
-#         connection = sqlite3.connect(DB_PATH)
-#         cursor = connection.cursor()
-
-#         cursor.execute(
-#             """
-#                 SELECT id, name, cpf, rfid, balance
-#                 FROM clients
-#             """
-#         )
-#         clients = cursor.fetchall()
-#         return clients
-
-#     except sqlite3.Error as e:
-#         print(f"Erro no db ao listar clientes: {e}")
-#         raise DatabaseError("Erro interno ao listar clientes")
-
-#     except Exception as e:
-#         print(f"Erro ao listar clientes: {e}")
-#         raise DatabaseError("Ocorreu um erro inesperado no sistema")
-
-#     finally:
-#         if connection:
-#             connection.close()
-
 def delete_account_by_id(id):
     try:
         connection = sqlite3.connect(DB_PATH)
@@ -396,3 +376,4 @@ def delete_account_by_id(id):
 
 if __name__ == "__main__":
     initialize_database()
+    

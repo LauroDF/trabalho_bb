@@ -7,7 +7,16 @@ class PasswordNotFoundError(Exception):
 class IncorrectPasswordError(Exception):
     ...
 
-class NoFieldsToBeUpdated(Exception):
+class NoFieldsToBeUpdatedError(Exception):
+    ...
+
+class MissingValueError(Exception):
+    ...
+
+class InvalidWithdrawAmountError(Exception):
+    ...
+    
+class InvalidDepositAmountError(Exception):
     ...
 
 class InsufficientBalanceError(Exception):
@@ -15,6 +24,4 @@ class InsufficientBalanceError(Exception):
 
 class DatabaseError(Exception):
     ...
-
-class MissingValueError(Exception):
-    ...
+    

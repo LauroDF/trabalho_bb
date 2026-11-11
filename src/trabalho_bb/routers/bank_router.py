@@ -3,18 +3,25 @@ from flask import (
     jsonify,
     request,
 )
+
 from ..services.bank_service import (
     create_account,
     authenticate_client,
     update_client_account,
+    get_client_data_account,
+    withdraw_client_account,
+    deposit_client_account,
     delete_client_account
     )
+
 from ..exceptions.exceptions import (
     ClientNotFoundError,
     PasswordNotFoundError,
     IncorrectPasswordError,
+    NoFieldsToBeUpdatedError,
     MissingValueError,
-    NoFieldsToBeUpdated,
+    InvalidWithdrawAmountError,
+    InvalidDepositAmountError,
     InsufficientBalanceError, 
     DatabaseError, 
 )
@@ -70,7 +77,7 @@ def register_account():
         }), 500
 
 @app.route("/api/auth", methods=["POST"])
-def login():
+def login_account():
     try:
         data = request.get_json()
         if not data:
@@ -126,6 +133,9 @@ def login():
 @app.route("/api/clients/<id>", methods=["PATCH"])
 def update_account(id):
     try:
+        if not id:
+            raise MissingValueError("Falha ao processar requisição")
+        
         data = request.get_json()
         if not data:
             raise MissingValueError("É necessário preencher algum campo para atualizar")
@@ -142,6 +152,12 @@ def update_account(id):
             "message": "Atualização realizada com sucesso",
             "data": update_result
         }), 200
+
+    except NoFieldsToBeUpdatedError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
 
     except MissingValueError as e:
         return jsonify({
@@ -173,11 +189,129 @@ def update_account(id):
             "message": "Ocorreu um erro inesperado no sistema",
         }), 500
 
+@app.route("/api/clients/<id>", methods=["GET"])
+def get_data_account(id):
+    try:
+        if not id:
+            raise MissingValueError("Falha ao processar requisição")
+
+        client_data_result = get_client_data_account(id)
+        
+        return jsonify({
+            "success": True,
+            "message": "Informações enviadas com sucesso",
+            "data": client_data_result
+        }), 200
+
+    except MissingValueError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except ClientNotFoundError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 404
+
+    except DatabaseError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 500
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Ocorreu um erro inesperado no sistema",
+        }), 500
+
+@app.route("/api/clients/<id>/withdraw", methods=["PATCH"])
+def withdraw_account(id):
+    try:
+        if not id:
+            raise MissingValueError("Falha ao processar requisição")
+
+        data = request.get_json()
+        if not data:
+            raise MissingValueError("É necessário preencher o valor para sacar")
+
+        balance = data.get("balance")
+        value_result = withdraw_client_account(id, balance)
+        
+        return jsonify({
+            "success": True,
+            "message": "Saque realizado com sucesso",
+            "data": value_result
+        }), 200
+
+    except InvalidWithdrawAmountError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except InsufficientBalanceError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except DatabaseError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 500
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Ocorreu um erro inesperado no sistema",
+        }), 500
+
+@app.route("/api/clients/<id>/deposit", methods=["PATCH"])
+def deposit_account(id):
+    try:
+        if not id:
+            raise MissingValueError("Falha ao processar requisição")
+
+        data = request.get_json()
+        if not data:
+            raise MissingValueError("É necessário preencher o valor para depositar")
+
+        balance = data.get("balance")
+        value_result = deposit_client_account(id, balance)
+        
+        return jsonify({
+            "success": True,
+            "message": "Depósito realizado com sucesso",
+            "data": value_result
+        }), 200
+
+    except InvalidDepositAmountError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except DatabaseError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 500
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Ocorreu um erro inesperado no sistema",
+        }), 500
+
 @app.route("/api/clients/<id>", methods=["DELETE"])
 def delete_account(id):
     try:
         if not id:
-            raise MissingValueError("Há campo(s) faltante(s)")
+            raise MissingValueError("Falha ao processar requisição")
 
         delete_client_account(id)
 
@@ -212,3 +346,4 @@ def delete_account(id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port= 5000, debug=True)
+    
