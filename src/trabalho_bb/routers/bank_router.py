@@ -4,7 +4,7 @@ from flask import (
     request,
 )
 
-from ..services.bank_service import (
+from trabalho_bb.services.bank_service import (
     create_account,
     authenticate_client,
     update_client_account,
@@ -14,7 +14,7 @@ from ..services.bank_service import (
     delete_client_account
     )
 
-from ..exceptions.exceptions import (
+from trabalho_bb.exceptions.exceptions import (
     ClientNotFoundError,
     PasswordNotFoundError,
     IncorrectPasswordError,
@@ -295,6 +295,12 @@ def deposit_account(id):
             "message": str(e),
         }), 400
 
+    except MissingValueError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
     except DatabaseError as e:
         return jsonify({
             "success": False,
@@ -346,4 +352,3 @@ def delete_account(id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port= 5000, debug=True)
-    

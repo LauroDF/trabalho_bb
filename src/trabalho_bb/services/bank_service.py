@@ -1,5 +1,4 @@
 import hashlib
-from ..hardware.tag_reader import read_card
 
 from trabalho_bb.repositories.bank_repository import (
     save_account_in_db,
@@ -11,7 +10,7 @@ from trabalho_bb.repositories.bank_repository import (
     delete_account_by_id,
 )
 
-from ..exceptions.exceptions import (
+from trabalho_bb.exceptions.exceptions import (
     PasswordNotFoundError,
     IncorrectPasswordError,
     MissingValueError,
@@ -118,6 +117,13 @@ def withdraw_client_account(id, withdraw_amount):
 
     withdraw_by_id(id, withdraw_amount)
 
+    client_data = get_client_data_by_id(id)
+    _, _, _, _, balance = client_data
+
+    return {
+        "balance": balance
+    }
+
 def deposit_client_account(id, deposit_amount):
     if deposit_amount <= 0.0:
         raise InvalidDepositAmountError("Valor de depósito inválido")
@@ -127,6 +133,12 @@ def deposit_client_account(id, deposit_amount):
 
     deposit_by_id(id, deposit_amount)
 
+    client_data = get_client_data_by_id(id)
+    _, _, _, _, balance = client_data
+
+    return {
+        "balance": balance
+    }
+
 def delete_client_account(id):
     delete_account_by_id(id)
-    

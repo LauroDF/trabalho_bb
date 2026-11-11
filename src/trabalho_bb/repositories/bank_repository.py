@@ -3,7 +3,7 @@ import uuid
 import hashlib
 from pathlib import Path
 
-from ..exceptions.exceptions import (
+from trabalho_bb.exceptions.exceptions import (
     ClientNotFoundError,
     NoFieldsToBeUpdatedError,
     InsufficientBalanceError, 
@@ -178,6 +178,9 @@ def update_account_by_id(id, new_name=None, new_cpf=None, new_password=None, new
             raise ClientNotFoundError("Cliente não encontrado")
         print(f"Atualização feita com sucesso")
 
+    except (NoFieldsToBeUpdatedError, ClientNotFoundError):
+        raise
+
     except sqlite3.IntegrityError:
         print(f"Erro: Não foi possível atualizar a conta por uma violação de integridade")
         raise DatabaseError("Erro interno ao atualizar conta")
@@ -214,6 +217,9 @@ def get_client_data_by_id(id):
             raise ClientNotFoundError("Cliente não encontrado")
         return client_data
 
+    except (ClientNotFoundError):
+        raise
+
     except sqlite3.Error as e:
         print(f"Erro no db atualizar a conta: {e}")
         raise DatabaseError("Erro interno ao atualizar conta")
@@ -240,7 +246,11 @@ def withdraw_by_id(id, withdraw_amount):
             (id,),
         )
 
-        current_balance = cursor.fetchone()[0]
+        row = cursor.fetchone()
+        if not row:
+            raise ClientNotFoundError("Cliente não encontrado")
+
+        current_balance = row[0]
         if current_balance < withdraw_amount:
             raise InsufficientBalanceError("Saldo insuficiente para realizar o saque")
 
@@ -257,6 +267,9 @@ def withdraw_by_id(id, withdraw_amount):
 
         connection.commit()
         print(f"Saque realizado com sucesso")
+
+    except (InsufficientBalanceError, ClientNotFoundError):
+        raise
 
     except sqlite3.Error as e:
         print(f"Erro no db ao realizar o saque: {e}")
@@ -284,7 +297,11 @@ def deposit_by_id(id, deposit_amount):
             (id,),
         )
 
-        current_balance = cursor.fetchone()[0]
+        row = cursor.fetchone()
+        if not row:
+            raise ClientNotFoundError("Cliente não encontrado")
+
+        current_balance = row[0]
         new_balance = current_balance + deposit_amount
 
         cursor.execute(
@@ -298,6 +315,9 @@ def deposit_by_id(id, deposit_amount):
 
         connection.commit()
         print(f"Depósito realizado com sucesso")
+
+    except (ClientNotFoundError):
+        raise
 
     except sqlite3.Error as e:
         print(f"Erro no db ao realizar o depósito: {e}")
@@ -331,6 +351,9 @@ def search_client_by_rfid(rfid):
             raise ClientNotFoundError("Cliente não encontrado")
         return client
 
+    except (ClientNotFoundError):
+            raise
+
     except sqlite3.Error as e:
         print(f"Erro no db ao procurar cliente: {e}")
         raise DatabaseError("Erro interno ao procurar cliente")
@@ -362,6 +385,9 @@ def delete_account_by_id(id):
             raise ClientNotFoundError("Cliente não encontrado")
         print(f"Conta excluída com sucesso")
 
+    except (NoFieldsToBeUpdatedError, ClientNotFoundError):
+        raise
+
     except sqlite3.Error as e:
         print(f"Erro no db ao excluir a conta: {e}")
         raise DatabaseError("Erro interno ao deletar conta")
@@ -376,4 +402,3 @@ def delete_account_by_id(id):
 
 if __name__ == "__main__":
     initialize_database()
-    
