@@ -1,5 +1,10 @@
 import hashlib
+import logging
 
+from redis.exceptions import RedisError
+
+from trabalho_bb.cache.redis import delete_client, get_client, post_client
+from trabalho_bb.cache.schemas import ClientData
 from trabalho_bb.repositories.bank_repository import (
     save_account_in_db,
     update_account_by_id,
@@ -17,6 +22,41 @@ from trabalho_bb.exceptions.exceptions import (
     InvalidWithdrawAmountError,
     InvalidDepositAmountError,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _client_data_to_dict(client_data):
+    return {
+        "id": client_data.id,
+        "name": client_data.name,
+        "cpf": client_data.cpf,
+        "rfid": client_data.rfid,
+        "balance": client_data.balance,
+    }
+
+
+def _cache_client_data(client_data):
+    try:
+        post_client(client_data)
+    except RedisError:
+        logger.warning("Unable to cache client %s", client_data.id, exc_info=True)
+
+
+def _get_cached_client_data(client_id):
+    try:
+        return get_client(client_id)
+    except RedisError:
+        logger.warning("Unable to read cached client %s", client_id, exc_info=True)
+        return None
+
+
+def _delete_cached_client_data(client_id):
+    try:
+        delete_client(client_id)
+    except RedisError:
+        logger.warning("Unable to invalidate cached client %s", client_id, exc_info=True)
+
 
 def hash_password(password):
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
@@ -40,13 +80,16 @@ def create_account(name, cpf, password, rfid, balance=0.0):
     hashed_password = hash_password(password)
     id = save_account_in_db(name, cpf, hashed_password, rfid, balance)
 
-    return {
+    account = {
         "id": id,
         "name": name,
         "cpf": cpf,
         "rfid": rfid,
         "balance": balance
     }
+    _cache_client_data(ClientData(**account))
+
+    return account
 
 def authenticate_client(rfid, password_input):
         if not rfid:
@@ -85,28 +128,20 @@ def update_client_account(id, name, cpf, password, rfid):
     update_account_by_id(id, name, cpf, hashed_password, rfid)
 
     client_data = get_client_data_by_id(id)
-    client_id, client_name, client_cpf, client_rfid, client_balance = client_data
+    cached_client_data = ClientData(*client_data)
+    _cache_client_data(cached_client_data)
 
-    return {
-        "id": client_id,
-        "name": client_name,
-        "cpf": client_cpf,
-        "rfid": client_rfid,
-        "balance": client_balance
-    }
+    return _client_data_to_dict(cached_client_data)
 
 def get_client_data_account(id):
-    client_data = get_client_data_by_id(id)
+    cached_client_data = _get_cached_client_data(id)
+    if cached_client_data is not None:
+        return _client_data_to_dict(cached_client_data)
 
-    id, name, cpf, rfid, balance = client_data
+    client_data = ClientData(*get_client_data_by_id(id))
+    _cache_client_data(client_data)
 
-    return {
-        "id": id,
-        "name": name,
-        "cpf": cpf,
-        "rfid": rfid,
-        "balance": balance
-    }
+    return _client_data_to_dict(client_data)
  
 def withdraw_client_account(id, withdraw_amount):
     if withdraw_amount <= 0.0:
@@ -118,10 +153,11 @@ def withdraw_client_account(id, withdraw_amount):
     withdraw_by_id(id, withdraw_amount)
 
     client_data = get_client_data_by_id(id)
-    _, _, _, _, balance = client_data
+    cached_client_data = ClientData(*client_data)
+    _cache_client_data(cached_client_data)
 
     return {
-        "balance": balance
+        "balance": cached_client_data.balance
     }
 
 def deposit_client_account(id, deposit_amount):
@@ -134,11 +170,13 @@ def deposit_client_account(id, deposit_amount):
     deposit_by_id(id, deposit_amount)
 
     client_data = get_client_data_by_id(id)
-    _, _, _, _, balance = client_data
+    cached_client_data = ClientData(*client_data)
+    _cache_client_data(cached_client_data)
 
     return {
-        "balance": balance
+        "balance": cached_client_data.balance
     }
 
 def delete_client_account(id):
     delete_account_by_id(id)
+    _delete_cached_client_data(id)
