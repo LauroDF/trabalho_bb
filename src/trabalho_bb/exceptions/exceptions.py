@@ -24,4 +24,6 @@ class InsufficientBalanceError(Exception):
 
 class DatabaseError(Exception):
     ...
-    
+
+class RfidTimeoutError(Exception):
+    ...

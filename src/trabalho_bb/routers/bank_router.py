@@ -4,6 +4,8 @@ from flask import (
     request,
 )
 
+from trabalho_bb.hardware.tag_reader import read_card
+
 from trabalho_bb.services.bank_service import (
     create_account,
     authenticate_client,
@@ -23,7 +25,8 @@ from trabalho_bb.exceptions.exceptions import (
     InvalidWithdrawAmountError,
     InvalidDepositAmountError,
     InsufficientBalanceError, 
-    DatabaseError, 
+    DatabaseError,
+    RfidTimeoutError
 )
 
 app = Flask(__name__)
@@ -343,6 +346,29 @@ def delete_account(id):
             "success": False,
             "message": str(e),
         }), 500
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Ocorreu um erro inesperado no sistema",
+        }), 500
+
+@app.route("/api/rfid", methods=["GET"])
+def read_rfid_card():
+    try:
+        rfid_result = read_card()
+
+        return jsonify({
+            "success": True,
+            "message": "Cartão lido com sucesso",
+            "data": rfid_result
+        }), 200
+
+    except RfidTimeoutError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 408
 
     except Exception as e:
         return jsonify({
