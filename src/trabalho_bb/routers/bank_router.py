@@ -24,7 +24,10 @@ from trabalho_bb.exceptions.exceptions import (
     MissingValueError,
     InvalidWithdrawAmountError,
     InvalidDepositAmountError,
-    InsufficientBalanceError, 
+    InsufficientBalanceError,
+    InvalidNameError,
+    InvalidCpfError,
+    InvalidRfidError,
     DatabaseError,
     RfidTimeoutError
 )
@@ -56,6 +59,24 @@ def register_account():
         }), 201
 
     except MissingValueError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except InvalidNameError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except InvalidCpfError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except InvalidRfidError as e:
         return jsonify({
             "success": False,
             "message": str(e),
@@ -98,6 +119,12 @@ def login_account():
         }), 200
 
     except MissingValueError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+    
+    except InvalidRfidError as e:
         return jsonify({
             "success": False,
             "message": str(e),
@@ -163,6 +190,24 @@ def update_account(id):
         }), 400
 
     except MissingValueError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except InvalidNameError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except InvalidCpfError as e:
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
+
+    except InvalidRfidError as e:
         return jsonify({
             "success": False,
             "message": str(e),
@@ -378,3 +423,4 @@ def read_rfid_card():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port= 5000, debug=True)
+    

@@ -1,10 +1,10 @@
 import hashlib
 import logging
-
+from validate_docbr import CPF
 from redis.exceptions import RedisError
-
 from trabalho_bb.cache.redis import delete_client, get_client, post_client
 from trabalho_bb.cache.schemas import ClientData
+
 from trabalho_bb.repositories.bank_repository import (
     save_account_in_db,
     update_account_by_id,
@@ -21,10 +21,12 @@ from trabalho_bb.exceptions.exceptions import (
     MissingValueError,
     InvalidWithdrawAmountError,
     InvalidDepositAmountError,
+    InvalidNameError,
+    InvalidCpfError,
+    InvalidRfidError
 )
 
 logger = logging.getLogger(__name__)
-
 
 def _client_data_to_dict(client_data):
     return {
@@ -74,8 +76,18 @@ def create_account(name, cpf, password, rfid, balance=0.0):
     if not rfid:
         raise MissingValueError("Tag não identificada")
 
+    if len(name) < 3 or len(name) > 100:
+        raise InvalidNameError("Nome fora dos padrões")
+
     if len(password) < 8 or len(password) > 128:
-        raise IncorrectPasswordError("Senha não pode ter menos que oito ou mais que 128 caracteres")
+        raise IncorrectPasswordError("Senha fora dos padrões")
+
+    cpf_validator = CPF()
+    if not cpf_validator.validate(cpf):
+        raise InvalidCpfError("Cpf inválido")
+
+    if len(rfid) < 8 or len(rfid) > 15:
+        raise InvalidRfidError("Cartão fora dos padrões")
 
     hashed_password = hash_password(password)
     id = save_account_in_db(name, cpf, hashed_password, rfid, balance)
@@ -98,8 +110,11 @@ def authenticate_client(rfid, password_input):
         if not password_input:
             raise MissingValueError("Senha não fornecida")
 
+        if len(rfid) < 8 or len(rfid) > 15:
+            raise InvalidRfidError("Cartão fora dos padrões")
+
         if len(password_input) < 8 or len(password_input) > 128:
-            raise IncorrectPasswordError("Senha não pode ter menos que oito ou mais que 128 caracteres")
+            raise IncorrectPasswordError("Senha fora dos padrões")
 
         client_data = search_client_by_rfid(rfid)
         id, name, cpf, password, balance = client_data
@@ -120,10 +135,20 @@ def authenticate_client(rfid, password_input):
 def update_client_account(id, name, cpf, password, rfid):
     hashed_password = None
 
+    if len(name) < 3 or len(name) > 100:
+        raise InvalidNameError("Nome fora dos padrões")
+
     if password is not None:
         if len(password) < 8 or len(password) > 128:
-            raise IncorrectPasswordError("Senha não pode ter menos que oito ou mais que 128 caracteres")
+            raise IncorrectPasswordError("Senha fora dos padrões")
         hashed_password = hash_password(password)
+
+    cpf_validator = CPF()
+    if not cpf_validator.validate(cpf):
+        raise InvalidCpfError("Cpf inválido")
+
+    if len(rfid) < 8 or len(rfid) > 15:
+        raise InvalidRfidError("Cartão fora dos padrões")
 
     update_account_by_id(id, name, cpf, hashed_password, rfid)
 
@@ -180,3 +205,4 @@ def deposit_client_account(id, deposit_amount):
 def delete_client_account(id):
     delete_account_by_id(id)
     _delete_cached_client_data(id)
+    
