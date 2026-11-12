@@ -29,7 +29,7 @@ async def _run_application(module: str) -> None:
 async def run() -> None:
     async with asyncio.TaskGroup() as task_group:
         task_group.create_task(_run_application("trabalho_bb.hardware"))
-        task_group.create_task(_run_application("trabalho_bb.services.api"))
+        task_group.create_task(_run_application("trabalho_bb.routers.bank_router"))
 
 
 def main() -> None:
