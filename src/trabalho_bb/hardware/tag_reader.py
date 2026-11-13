@@ -4,10 +4,10 @@ import time
 import threading
 from trabalho_bb.exceptions.exceptions import RfidTimeoutError
 
-PIN_RED = 17
-PIN_GREEN = 27
-PIN_BLUE = 22
-PIN_BUZZER = 21
+PIN_RED = 15
+PIN_GREEN = 11
+PIN_BLUE = 29
+PIN_BUZZER = 12
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(PIN_RED, GPIO.OUT)
