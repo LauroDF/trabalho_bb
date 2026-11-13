@@ -2,12 +2,12 @@
 
 ## Conteúdo
 
-- `tests/__init__.py`: identifica `tests` como pacote Python.
-- `tests/conftest.py`: fixtures do pytest, banco SQLite temporário e cliente Flask.
-- `tests/test_bank_repository.py`: testes de persistência SQLite.
-- `tests/test_bank_service.py`: testes das regras de negócio.
-- `tests/test_bank_router.py`: testes HTTP dos endpoints Flask.
-- `tests/test_redis.py`: testes do cache Redis usando um cliente falso em memória.
+- `test/__init__.py`: identifica `test` como pacote Python.
+- `test/conftest.py`: fixtures do pytest, banco SQLite temporário e cliente Flask.
+- `test/test_bank_repository.py`: testes de persistência SQLite.
+- `test/test_bank_service.py`: testes das regras de negócio.
+- `test/test_bank_router.py`: testes HTTP dos endpoints Flask.
+- `test/test_redis.py`: testes do cache Redis usando um cliente falso em memória.
 
 ## Segurança dos dados
 
