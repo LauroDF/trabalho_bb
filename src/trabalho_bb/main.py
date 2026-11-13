@@ -3,11 +3,12 @@ import signal
 import sys
 
 
-async def _run_application(module: str) -> None:
+async def _run_application(module: str, *args: str) -> None:
     process = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",
         module,
+        *args,
         start_new_session=True,
     )
 
@@ -30,6 +31,7 @@ async def run() -> None:
     async with asyncio.TaskGroup() as task_group:
         # task_group.create_task(_run_application("trabalho_bb.hardware"))
         task_group.create_task(_run_application("trabalho_bb.routers.bank_router"))
+        task_group.create_task(_run_application("trabalho_bb.web.server_rfid", "--proxy-only"))
 
 
 def main() -> None:

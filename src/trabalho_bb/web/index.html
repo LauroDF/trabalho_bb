@@ -3,9 +3,533 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <title>NovoBank — Terminal de Autoatendimento</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  
+
+  <div class="app-shell">
+    <!-- Header Top Shell -->
+    <header class="terminal-header">
+      <div class="brand-unit">
+        <div class="brand-mark">N</div>
+        <div class="brand-text">
+          <div class="brand-name">NovoBank</div>
+          <div class="brand-sub">Terminal de Autoatendimento · Integração Raspberry Pi</div>
+        </div>
+      </div>
+      <div class="header-status">
+        <div class="hardware-indicator" id="hardwareIndicator">
+          <span class="status-dot waiting" id="statusDot"></span>
+          <span id="hardwareStatusText">Verificando API Flask...</span>
+        </div>
+        <div class="terminal-clock" id="terminalClock">--:--:--</div>
+      </div>
+    </header>
+
+    <main>
+      <!-- View 1: Standby / Tela de Espera por Cartão RFID -->
+      <section class="view-panel active" id="viewStandby">
+        <div class="standby-card">
+          <div class="rfid-target-sensor" id="standbySensorGraphic">
+            <svg class="sensor-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 10a8 8 0 0 1 16 0"/>
+              <path d="M7 13a4 4 0 0 1 10 0"/>
+              <circle cx="12" cy="16" r="1.5"/>
+            </svg>
+          </div>
+          <h1 class="standby-title">Aproxime seu cartão NovoBank</h1>
+          <p class="standby-desc">
+            Aproxime o seu cartão no leitor RFID da Raspberry Pi para acessar sua conta ou faça seu primeiro cadastro.
+          </p>
+
+          <div id="standbyStatusBanner" class="inline-alert info" style="display: none;"></div>
+
+          <div class="standby-actions">
+            <button type="button" class="btn-primary" id="btnReadPhysicalRfid">
+              Ler Cartão no Sensor Físico
+            </button>
+            <button type="button" class="btn-secondary" id="btnGoToRegister">
+              Primeiro Acesso / Cadastrar Cartão
+            </button>
+          </div>
+
+          <div class="standby-features-grid">
+            <div class="standby-feature-col">
+              <div class="feature-title">Leitura Contactless SPI</div>
+              <div class="feature-desc">Integração direta com o leitor MFRC522 via endpoint /api/rfid na Raspberry Pi.</div>
+            </div>
+            <div class="standby-feature-col">
+              <div class="feature-title">Autenticação em Duas Etapas</div>
+              <div class="feature-desc">Validação conjunta do UID do cartão RFID e senha pessoal com hash SHA-256.</div>
+            </div>
+            <div class="standby-feature-col">
+              <div class="feature-title">Persistência SQLite e Redis</div>
+              <div class="feature-desc">Operações de cadastro, saldo, saque e depósito sincronizadas com o backend Flask.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- View 2: Tela de Autenticação por Senha (POST /api/auth) -->
+      <section class="view-panel" id="viewPin">
+        <div class="pin-wrapper">
+          <div class="pin-header">
+            <div class="pin-avatar" id="pinUserAvatar">NB</div>
+            <h2 class="view-title" id="pinGreeting">Cartão Identificado</h2>
+            <p class="view-subtitle">Digite sua senha de acesso (mínimo 8 caracteres) para autenticar na conta.</p>
+            <div class="card-uid-badge" id="pinRfidBadge">RFID: --</div>
+          </div>
+
+          <div id="pinErrorMsg" class="inline-alert error" style="display: none;"></div>
+
+          <form class="pin-form" onsubmit="event.preventDefault(); window.novoBank.submitPin();">
+            <div class="form-field" style="width: 100%; margin-bottom: 16px;">
+              <label class="form-label" for="authPasswordInput">Senha da Conta</label>
+              <input type="password" id="authPasswordInput" class="form-input" placeholder="Mínimo 8 caracteres" minlength="8" maxlength="128" autocomplete="current-password">
+            </div>
+
+            <div class="pin-keypad">
+              <button type="button" class="key-btn" onclick="window.novoBank.enterPinDigit('1')">1</button>
+              <button type="button" class="key-btn" onclick="window.novoBank.enterPinDigit('2')">2</button>
+              <button type="button" class="key-btn" onclick="window.novoBank.enterPinDigit('3')">3</button>
+              <button type="button" class="key-btn" onclick="window.novoBank.enterPinDigit('4')">4</button>
+              <button type="button" class="key-btn" onclick="window.novoBank.enterPinDigit('5')">5</button>
+              <button type="button" class="key-btn" onclick="window.novoBank.enterPinDigit('6')">6</button>
+              <button type="button" class="key-btn" onclick="window.novoBank.enterPinDigit('7')">7</button>
+              <button type="button" class="key-btn" onclick="window.novoBank.enterPinDigit('8')">8</button>
+              <button type="button" class="key-btn" onclick="window.novoBank.enterPinDigit('9')">9</button>
+              <button type="button" class="key-btn key-action" onclick="window.novoBank.clearPin()">Limpar</button>
+              <button type="button" class="key-btn" onclick="window.novoBank.enterPinDigit('0')">0</button>
+              <button type="submit" class="key-btn key-confirm" id="btnSubmitAuth">Entrar</button>
+            </div>
+          </form>
+
+          <div class="pin-hint-box" id="pinHintBox">
+            Aceita digitação pelo teclado físico ou teclado numérico acima.
+          </div>
+
+          <div class="pin-extra-actions">
+            <button type="button" class="btn-secondary btn-full" id="btnRegisterFromPin">
+              Cartão sem conta? Cadastrar com este RFID
+            </button>
+            <button type="button" class="btn-secondary btn-full" id="btnCancelPin">
+              Cancelar e Voltar
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- View 3: Cadastro / Primeiro Acesso (POST /api/clients) -->
+      <section class="view-panel" id="viewRegister">
+        <div class="register-wrapper">
+          <h2 class="view-title">Abertura de Conta e Vínculo RFID</h2>
+          <p class="view-subtitle">Informe nome, CPF válido (11 dígitos), senha (mínimo 8 caracteres) e o chip RFID (8 a 15 caracteres).</p>
+
+          <div id="regErrorMsg" class="inline-alert error" style="display: none;"></div>
+
+          <form id="formRegister" onsubmit="event.preventDefault(); window.novoBank.completeRegistration();">
+            <div class="form-field">
+              <label class="form-label" for="regFullName">Nome Completo do Titular (3 a 100 caracteres)</label>
+              <input type="text" id="regFullName" class="form-input" placeholder="Ex: Maria Oliveira Santos" minlength="3" maxlength="100" required>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label" for="regCpf">CPF (11 dígitos numéricos)</label>
+              <div class="input-with-action">
+                <input type="text" id="regCpf" class="form-input" placeholder="Ex: 52998224059" maxlength="14" inputmode="numeric" required>
+                <button type="button" class="btn-secondary btn-compact" id="btnGenerateValidCpf">
+                  Gerar CPF Válido
+                </button>
+              </div>
+            </div>
+
+            <div class="form-two-cols">
+              <div class="form-field">
+                <label class="form-label" for="regPin">Senha (8 a 128 caracteres)</label>
+                <input type="password" id="regPin" class="form-input" placeholder="Mínimo 8 caracteres" minlength="8" maxlength="128" required>
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="regPinConfirm">Confirmar Senha</label>
+                <input type="password" id="regPinConfirm" class="form-input" placeholder="Repita a senha" minlength="8" maxlength="128" required>
+              </div>
+            </div>
+
+            <div class="card-scan-zone">
+              <div class="form-label">Cartão RFID Físico (8 a 15 caracteres)</div>
+              <div class="card-scan-status" id="regScanStatus">Aproxime o cartão no sensor ou clique em um cartão novo na barra inferior.</div>
+              <div class="card-uid-badge" id="regUidDisplay">RFID: --</div>
+              <div style="margin-top: 12px;">
+                <button type="button" class="btn-secondary btn-compact" id="btnReadRfidRegister">
+                  Ler no Sensor Físico (/api/rfid)
+                </button>
+              </div>
+            </div>
+
+            <div class="form-actions-row">
+              <button type="submit" class="btn-primary" id="btnSubmitRegister" style="flex: 1;" disabled>
+                Cadastrar e Acessar Conta
+              </button>
+              <button type="button" class="btn-secondary" id="btnCancelRegister">
+                Voltar
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- View 4: Dashboard Principal Autenticado -->
+      <section class="view-panel" id="viewDashboard">
+        <div class="dashboard-topbar">
+          <div class="customer-info">
+            <div class="customer-avatar" id="dashAvatar">NB</div>
+            <div>
+              <div class="customer-name" id="dashCustomerName">Titular</div>
+              <div class="account-identifiers">
+                ID: <span id="dashAccountNum">--</span> · CPF: <span id="dashCpfDisplay">--</span> · RFID: <span id="dashUidDisplay">--</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="session-logout-btn" id="btnLogout">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Encerrar Sessão (<span id="logoutCountdown">60s</span>)
+          </button>
+        </div>
+
+        <div class="atm-grid">
+          <!-- Card de Saldo Principal -->
+          <div class="balance-card">
+            <div>
+              <div class="balance-label">Saldo em conta corrente</div>
+              <div class="balance-amount" id="dashBalanceDisplay">
+                R$ 0<span class="cents">,00</span>
+              </div>
+              <div class="yield-meta" id="dashSyncMeta">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                  <polyline points="17 6 23 6 23 12"/>
+                </svg>
+                <span>Sincronizado com backend Flask</span>
+              </div>
+            </div>
+            <div class="yield-info-note">
+              Limites por operação: saque até R$ 10.000,00 e depósito até R$ 1.000.000,00.
+            </div>
+          </div>
+
+          <!-- Card de Ações de Autoatendimento -->
+          <div class="actions-card">
+            <div class="actions-title">Operações Rápidas</div>
+            <div class="action-tiles-row">
+              <button type="button" class="action-tile-btn" id="btnOpenDepositModal">
+                <svg class="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                <div>
+                  <div class="tile-label">Depositar</div>
+                  <div class="tile-sub">Creditar valor via RFID</div>
+                </div>
+              </button>
+
+              <button type="button" class="action-tile-btn" id="btnOpenWithdrawModal">
+                <svg class="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="6" width="20" height="12" rx="2"/>
+                  <circle cx="12" cy="12" r="2"/>
+                  <path d="M6 12h.01M18 12h.01"/>
+                </svg>
+                <div>
+                  <div class="tile-label">Sacar</div>
+                  <div class="tile-sub">Retirar valor com RFID</div>
+                </div>
+              </button>
+
+              <button type="button" class="action-tile-btn" id="btnOpenInfoModal">
+                <svg class="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="16" x2="12" y2="12"/>
+                  <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <div>
+                  <div class="tile-label">Ver Informações</div>
+                  <div class="tile-sub">Dados, edição e limites</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela do Extrato Recente -->
+        <div class="ledger-panel">
+          <div class="ledger-header">
+            <h3 class="ledger-title">Extrato de Movimentações</h3>
+            <span class="ledger-subtitle">Histórico da sessão atual</span>
+          </div>
+
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>Data e Hora</th>
+                <th>Descrição</th>
+                <th>Canal</th>
+                <th class="num-col">Valor</th>
+                <th class="num-col">Saldo Após</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerTableBody">
+              <!-- Linhas geradas via JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal de Depósito -->
+  <div class="modal-overlay" id="modalDeposit">
+    <div class="modal-window">
+      <h3 class="modal-title">Realizar Depósito</h3>
+      <p class="modal-desc">Selecione o valor ou digite uma quantia até R$ 1.000.000,00 para creditar na conta.</p>
+
+      <div class="preset-values-grid">
+        <button type="button" class="preset-btn" onclick="window.novoBank.setDepositAmount(20)">R$ 20</button>
+        <button type="button" class="preset-btn" onclick="window.novoBank.setDepositAmount(50)">R$ 50</button>
+        <button type="button" class="preset-btn" onclick="window.novoBank.setDepositAmount(100)">R$ 100</button>
+        <button type="button" class="preset-btn" onclick="window.novoBank.setDepositAmount(200)">R$ 200</button>
+        <button type="button" class="preset-btn" onclick="window.novoBank.setDepositAmount(500)">R$ 500</button>
+        <button type="button" class="preset-btn" onclick="window.novoBank.setDepositAmount(1000)">R$ 1.000</button>
+      </div>
+
+      <div class="form-field">
+        <label class="form-label" for="depositCustomAmount">Outro Valor (R$)</label>
+        <input type="number" id="depositCustomAmount" class="form-input" placeholder="0,00" min="0.01" max="1000000" step="0.01">
+      </div>
+
+      <div id="depositErrorMsg" class="inline-alert error" style="display: none;"></div>
+
+      <div class="modal-rfid-wait-box" id="depositRfidBox">
+        <div class="modal-rfid-instruction">Aproxime seu cartão RFID para confirmar o depósito</div>
+        <div class="modal-rfid-tip">Passe o cartão titular no leitor MFRC522 ou acione a leitura física abaixo.</div>
+        <div class="modal-confirm-actions">
+          <button type="button" class="btn-primary btn-compact" id="btnDepositReadRfid">
+            Ler Sensor Físico
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="window.novoBank.closeModals()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Saque -->
+  <div class="modal-overlay" id="modalWithdraw">
+    <div class="modal-window">
+      <h3 class="modal-title">Realizar Saque</h3>
+      <p class="modal-desc">Selecione o valor desejado (máximo de R$ 10.000,00 por operação).</p>
+
+      <div class="preset-values-grid">
+        <button type="button" class="preset-btn" onclick="window.novoBank.setWithdrawAmount(20)">R$ 20</button>
+        <button type="button" class="preset-btn" onclick="window.novoBank.setWithdrawAmount(50)">R$ 50</button>
+        <button type="button" class="preset-btn" onclick="window.novoBank.setWithdrawAmount(100)">R$ 100</button>
+        <button type="button" class="preset-btn" onclick="window.novoBank.setWithdrawAmount(200)">R$ 200</button>
+        <button type="button" class="preset-btn" onclick="window.novoBank.setWithdrawAmount(300)">R$ 300</button>
+        <button type="button" class="preset-btn" onclick="window.novoBank.setWithdrawAmount(500)">R$ 500</button>
+      </div>
+
+      <div class="form-field">
+        <label class="form-label" for="withdrawCustomAmount">Outro Valor (R$)</label>
+        <input type="number" id="withdrawCustomAmount" class="form-input" placeholder="0,00" min="0.01" max="10000" step="0.01">
+      </div>
+
+      <div id="withdrawErrorMsg" class="inline-alert error" style="display: none;">
+        Saldo insuficiente para realizar este saque.
+      </div>
+
+      <div class="modal-rfid-wait-box" id="withdrawRfidBox">
+        <div class="modal-rfid-instruction">Aproxime seu cartão RFID para autorizar o saque</div>
+        <div class="modal-rfid-tip">Passe o cartão titular no leitor MFRC522 ou acione a leitura física abaixo.</div>
+        <div class="modal-confirm-actions">
+          <button type="button" class="btn-primary btn-compact" id="btnWithdrawReadRfid">
+            Ler Sensor Físico
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="window.novoBank.closeModals()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Informações, Edição e Exclusão da Conta -->
+  <div class="modal-overlay" id="modalInfo">
+    <div class="modal-window modal-window-wide">
+      <h3 class="modal-title">Informações da Conta</h3>
+      <p class="modal-desc" id="infoSyncStatus">Dados sincronizados com GET /api/clients/&lt;id&gt;.</p>
+
+      <div class="info-sections-container">
+        <!-- Grupo 1: Dados Bancários -->
+        <div class="info-group">
+          <div class="info-group-title">Titular e Dados Cadastrais</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-item-label">Titular</span>
+              <span class="info-item-value" id="infoCustomerName">--</span>
+            </div>
+            <div class="info-item">
+              <span class="info-item-label">CPF</span>
+              <span class="info-item-value num-col-left" id="infoDoc">--</span>
+            </div>
+            <div class="info-item">
+              <span class="info-item-label">ID da Conta (UUID)</span>
+              <span class="info-item-value num-col-left" id="infoAccountId">--</span>
+            </div>
+            <div class="info-item">
+              <span class="info-item-label">Saldo Atual</span>
+              <span class="info-item-value num-col-left" id="infoBalanceDisplay">R$ 0,00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grupo 2: Hardware & Limites -->
+        <div class="info-group">
+          <div class="info-group-title">Hardware RFID e Limites Operacionais</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-item-label">Tag RFID Vinculada</span>
+              <span class="info-item-value num-col-left" id="infoCardUid">--</span>
+            </div>
+            <div class="info-item">
+              <span class="info-item-label">Sensor de Hardware</span>
+              <span class="info-item-value">MFRC522 SPI (13.56 MHz)</span>
+            </div>
+            <div class="info-item">
+              <span class="info-item-label">Limite por Saque</span>
+              <span class="info-item-value num-col-left">R$ 10.000,00</span>
+            </div>
+            <div class="info-item">
+              <span class="info-item-label">Limite por Depósito</span>
+              <span class="info-item-value num-col-left">R$ 1.000.000,00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grupo 3: Edição de Dados (PATCH /api/clients/<id>) -->
+        <div class="info-group">
+          <div class="info-group-title">Atualizar Cadastro</div>
+          <div id="updFeedbackMsg" class="inline-alert" style="display: none;"></div>
+          <form id="formUpdateAccount" onsubmit="event.preventDefault(); window.novoBank.updateAccountInfo();">
+            <div class="form-two-cols">
+              <div class="form-field">
+                <label class="form-label" for="updName">Nome</label>
+                <input type="text" id="updName" class="form-input form-input-compact" minlength="3" maxlength="100" required>
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="updCpf">CPF (11 dígitos)</label>
+                <input type="text" id="updCpf" class="form-input form-input-compact" maxlength="14" inputmode="numeric" required>
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="updRfid">Tag RFID (8 a 15 caracteres)</label>
+                <input type="text" id="updRfid" class="form-input form-input-compact" minlength="8" maxlength="15" required>
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="updPassword">Nova Senha (opcional, mín. 8)</label>
+                <input type="password" id="updPassword" class="form-input form-input-compact" placeholder="Manter senha atual" maxlength="128">
+              </div>
+            </div>
+            <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+              <button type="submit" class="btn-secondary btn-compact" id="btnSaveAccountUpdate">
+                Salvar Alterações
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="modal-footer modal-footer-split">
+        <button type="button" class="btn-danger-outline btn-compact" id="btnDeleteAccount">
+          Excluir Conta
+        </button>
+        <button type="button" class="btn-primary" onclick="window.novoBank.closeModals()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botão discreto no canto para abrir Simulador / Atalhos de Apresentação -->
+  <button type="button" class="sim-corner-toggle" id="btnToggleSimDrawer" aria-label="Abrir painel de testes" title="Simulador e atalhos">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="4" y1="21" x2="4" y2="14"/>
+      <line x1="4" y1="10" x2="4" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="12"/>
+      <line x1="12" y1="8" x2="12" y2="3"/>
+      <line x1="20" y1="21" x2="20" y2="16"/>
+      <line x1="20" y1="12" x2="20" y2="3"/>
+      <line x1="1" y1="14" x2="7" y2="14"/>
+      <line x1="9" y1="8" x2="15" y2="8"/>
+      <line x1="17" y1="16" x2="23" y2="16"/>
+    </svg>
+  </button>
+
+  <aside class="sim-drawer" id="simDrawer" aria-label="Painel de simulação">
+    <div class="sim-drawer-header">
+      <div>
+        <div class="sim-drawer-title">Painel de Testes RFID</div>
+        <div class="sim-drawer-status" id="wsConnectionStatus">API: Conectando...</div>
+      </div>
+      <button type="button" class="sim-drawer-close" id="btnCloseSimDrawer" aria-label="Fechar painel">Fechar</button>
+    </div>
+
+    <div class="sim-drawer-section">
+      <div class="sim-drawer-label">Simular Cartão</div>
+      <div class="sim-drawer-cards">
+        <button type="button" class="sim-btn" onclick="window.novoBank.simulateCardTap('962185903074')">
+          Pedro (962185903074)
+        </button>
+        <button type="button" class="sim-btn" onclick="window.novoBank.simulateCardTap('701044494601')">
+          Carlo (701044494601)
+        </button>
+        <button type="button" class="sim-btn" onclick="window.novoBank.simulateCardTap('632092037175')">
+          Miguel (632092037175)
+        </button>
+        <button type="button" class="sim-btn" onclick="window.novoBank.simulateCardTap('427066982110')">
+          Sophia (427066982110)
+        </button>
+        <button type="button" class="sim-btn" onclick="window.novoBank.simulateCardTap('884920194821')">
+          Cartão Novo (884920194821)
+        </button>
+      </div>
+      <div class="sim-drawer-custom">
+        <input type="text" id="customUidInput" class="sim-input" placeholder="RFID (8-15)" maxlength="15">
+        <button type="button" class="sim-btn" onclick="window.novoBank.simulateCustomTap()">
+          Simular RFID
+        </button>
+      </div>
+    </div>
+
+    <div class="sim-drawer-section">
+      <div class="sim-drawer-label">Atalhos (sem sensor físico)</div>
+      <div class="sim-drawer-actions">
+        <button type="button" class="sim-btn sim-btn-full" id="btnFillTestPassword" style="display: none;">
+          Preencher senha de teste deste cliente
+        </button>
+        <button type="button" class="sim-btn sim-btn-full" id="btnDepositConfirmDirect" disabled>
+          Confirmar Depósito (sem RFID)
+        </button>
+        <button type="button" class="sim-btn sim-btn-full" id="btnWithdrawConfirmDirect" disabled>
+          Confirmar Saque (sem RFID)
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <script src="app.js"></script>
 </body>
 </html>
