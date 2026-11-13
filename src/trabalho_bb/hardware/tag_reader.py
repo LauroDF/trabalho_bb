@@ -6,7 +6,7 @@ from trabalho_bb.exceptions.exceptions import RfidTimeoutError
 
 PIN_RED = 15
 PIN_GREEN = 11
-PIN_BLUE = 29
+PIN_BLUE = 13
 PIN_BUZZER = 12
 
 GPIO.setmode(GPIO.BCM)
