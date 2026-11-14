@@ -10,7 +10,7 @@ from trabalho_bb.exceptions.exceptions import (
     DatabaseError, 
 )
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
+ROOT_DIR = Path(__file__).resolve().parents[4]
 DB_DIR = ROOT_DIR / "data"
 DB_PATH = DB_DIR / "clients.db"
 
@@ -44,7 +44,7 @@ def initialize_database():
                     str(uuid.uuid4()),
                     "Pedro Silva",
                     "11144477735",
-                    hash_password("3443dre3t4t"),
+                    hash_password("12345678"),
                     "962185903074",
                     578,
                 ),
@@ -52,7 +52,7 @@ def initialize_database():
                     str(uuid.uuid4()),
                     "Carlo Edoardo",
                     "52998224059",
-                    hash_password("43gds5yge"),
+                    hash_password("12345678"),
                     "701044494601",
                     2345,
                 ),
@@ -60,7 +60,7 @@ def initialize_database():
                     str(uuid.uuid4()),
                     "Miguel Alencar",
                     "12345678908",
-                    hash_password("miguel123456"),
+                    hash_password("12345678"),
                     "632092037175",
                     21,
                 ),
@@ -68,7 +68,7 @@ def initialize_database():
                     str(uuid.uuid4()),
                     "Sophia Bonita",
                     "45678901206",
-                    hash_password("admin1234567"),
+                    hash_password("12345678"),
                     "427066982110",
                     95046,
                 ),

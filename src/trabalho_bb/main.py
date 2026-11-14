@@ -1,6 +1,7 @@
 import asyncio
 import signal
 import sys
+import RPi.GPIO as GPIO
 
 
 async def _run_application(module: str, *args: str) -> None:
@@ -39,6 +40,8 @@ def main() -> None:
         asyncio.run(run())
     except KeyboardInterrupt:
         print("\nProgram stopped by user.")
+    finally:
+        GPIO.cleanup()
 
 
 if __name__ == "__main__":

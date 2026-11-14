@@ -330,6 +330,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pi-rc522"
+version = "2.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "rpi-gpio" },
+    { name = "spidev" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/09/db/b50a33d8573737a8494f49aea63be87b2e8baceb145181540ec7853e4651/pi-rc522-2.3.0.tar.gz", hash = "sha256:edf97b061f39cbfd3f306f41e66c140557af5ec88d814275a30856f0884e2af0", size = 10632, upload-time = "2023-10-03T14:15:53.662Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/1f/1db8150ff3a68305d32b1a75d77ab718cf84b271387efccc10f70b548d91/pi_rc522-2.3.0-py3-none-any.whl", hash = "sha256:e7af0c9d31c1e52305691840dd0e9fb15f17b2fac7ebd71c74b791b858059787", size = 7954, upload-time = "2023-10-03T14:15:51.08Z" },
+]
+
+[[package]]
 name = "pluggy"
 version = "1.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -406,6 +419,7 @@ source = { editable = "." }
 dependencies = [
     { name = "flask" },
     { name = "mfrc522" },
+    { name = "pi-rc522" },
     { name = "redis" },
     { name = "requests" },
     { name = "rpi-gpio" },
@@ -427,6 +441,7 @@ dev = [
 requires-dist = [
     { name = "flask", specifier = ">=3.1.3" },
     { name = "mfrc522", specifier = ">=0.0.7" },
+    { name = "pi-rc522", specifier = ">=2.3.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8.3.0" },
     { name = "redis", specifier = ">=8.1.0" },
     { name = "requests", specifier = ">=2.34.2" },

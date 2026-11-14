@@ -4,27 +4,34 @@ import time
 import threading
 from trabalho_bb.exceptions.exceptions import RfidTimeoutError
 
-PIN_RED = 15
-PIN_GREEN = 11
-PIN_BLUE = 13
-PIN_BUZZER = 12
+# PIN_RED = 15
+# PIN_GREEN = 11
+# PIN_BLUE = 13
+# PIN_BUZZER = 12
 
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(PIN_RED, GPIO.OUT)
-GPIO.setup(PIN_GREEN, GPIO.OUT)
-GPIO.setup(PIN_BLUE, GPIO.OUT)
-GPIO.setup(PIN_BUZZER, GPIO.OUT)
+# GPIO.setup(PIN_RED, GPIO.OUT)
+# GPIO.setup(PIN_GREEN, GPIO.OUT)
+# GPIO.setup(PIN_BLUE, GPIO.OUT)
+# GPIO.setup(PIN_BUZZER, GPIO.OUT)
+GPIO.cleanup()
+
+GPIO.setmode(GPIO.BCM)
+# GPIO.setup(PIN_RED, GPIO.OUT)
+# GPIO.setup(PIN_GREEN, GPIO.OUT)
+# GPIO.setup(PIN_BLUE, GPIO.OUT)
+# GPIO.setup(PIN_BUZZER, GPIO.OUT)
 
 def light_led_and_buzzer():
-    GPIO.output(PIN_RED, GPIO.LOW)
-    GPIO.output(PIN_GREEN, GPIO.LOW)
-    GPIO.output(PIN_BLUE, GPIO.HIGH)
-    GPIO.output(PIN_BUZZER, GPIO.HIGH)
+    # GPIO.output(PIN_RED, GPIO.LOW)
+    # GPIO.output(PIN_GREEN, GPIO.LOW)
+    # GPIO.output(PIN_BLUE, GPIO.HIGH)
+    # GPIO.output(PIN_BUZZER, GPIO.HIGH)
     time.sleep(1)
-    GPIO.output(PIN_BUZZER, GPIO.LOW)
-    GPIO.output(PIN_RED, GPIO.LOW)
-    GPIO.output(PIN_GREEN, GPIO.LOW)
-    GPIO.output(PIN_BLUE, GPIO.LOW)
+    # GPIO.output(PIN_BUZZER, GPIO.LOW)
+    # GPIO.output(PIN_RED, GPIO.LOW)
+    # GPIO.output(PIN_GREEN, GPIO.LOW)
+    # GPIO.output(PIN_BLUE, GPIO.LOW)
 
 def read_card(timeout=15):
     try:
@@ -38,12 +45,13 @@ def read_card(timeout=15):
             if passed_time > timeout:
                 raise RfidTimeoutError("Tempo para ler cartão expirado")
 
-            (status, TagType) = rfid_reader.READER.MFRC522_Request(rfid_reader.READER.PICC_REQIDL)
+            # Utiliza o método nativo do SimpleMFRC522 para leitura não-bloqueante
+            id, text = rfid_reader.read_no_block()
 
-            if status == rfid_reader.READER.MI_OK:
-                tag, text = rfid_reader.read()
-                rfid = str(tag).strip()
+            if id is not None:
+                rfid = str(id).strip()
 
+                # Dispara o LED e o buzzer em uma thread separada
                 new_thread = threading.Thread(target=light_led_and_buzzer)
                 new_thread.start()
 
@@ -53,9 +61,10 @@ def read_card(timeout=15):
 
             time.sleep(0.1)
 
+            
     except (RfidTimeoutError):
         raise
 
     except Exception as e:
-        raise
-    
+        print(e)
+        raise e
